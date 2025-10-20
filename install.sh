@@ -9,7 +9,6 @@ NC='\033[0m'
 
 MALLOW_ENV_DIR="$HOME/.mallow_env"
 BIN_DIR="$HOME/.local/bin"
-# The GitHub repository URL now points to the ZIP archive of the main branch
 REPO_URL="https://github.com/42Wor/mallow-cli/archive/refs/heads/main.zip"
 LOG_FILE="mallow-install.log"
 # --- End Configuration ---
@@ -40,20 +39,18 @@ function draw_progress_bar {
     printf "\r[$(printf '#%.0s' $(seq 1 $width))] 100%% \n"
 }
 
-# --- Main Script ---
-echo -e "${YELLOW}Installing Mallow via HTTPS...${NC}"
 
-# Create virtual environment silently
+# --- Main Script ---
+echo -e "${YELLOW}Starting fully automated Mallow installation...${NC}"
+
+# 1. Create virtual environment
 python3 -m venv "$MALLOW_ENV_DIR" > /dev/null
 
-# Install the project in the background from the ZIP URL
+# 2. Install the project
 "$MALLOW_ENV_DIR/bin/pip" install --no-input "$REPO_URL" > "$LOG_FILE" 2>&1 &
 PID=$!
-
 echo "Installing packages..."
 draw_progress_bar $PID
-
-# Wait for pip to finish and check its exit code
 wait $PID
 EXIT_CODE=$?
 
@@ -65,18 +62,48 @@ else
     echo "✅ Packages installed successfully."
 fi
 
-# Link the command to the user's path
-echo "Adding 'mallow' command to your system path..."
+# 3. Link the executable
 mkdir -p "$BIN_DIR"
 ln -sf "$MALLOW_ENV_DIR/bin/mallow" "$BIN_DIR/mallow"
 
-# Check if PATH is configured
-if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
-    echo -e "\n${YELLOW}ACTION REQUIRED:${NC}"
-    echo "To make the 'mallow' command work, add this line to your ~/.bashrc or ~/.zshrc:"
-    echo -e "\n  ${GREEN}export PATH=\"\$HOME/.local/bin:\$PATH\"${NC}\n"
-    echo "Then, restart your terminal."
+# --- THIS IS THE NEW, FULLY AUTOMATED PART ---
+# 4. Automatically configure the user's shell PATH
+echo "Configuring your shell environment..."
+CONFIG_FILE=""
+SHELL_NAME=$(basename "$SHELL")
+
+if [ "$SHELL_NAME" = "zsh" ]; then
+    CONFIG_FILE="$HOME/.zshrc"
+elif [ "$SHELL_NAME" = "bash" ]; then
+    CONFIG_FILE="$HOME/.bashrc"
+    # For non-interactive shells, .bash_profile might be used, so we check that too
+    if [ ! -f "$HOME/.bashrc" ]; then
+        CONFIG_FILE="$HOME/.bash_profile"
+    fi
+else
+    # Fallback for other shells like fish, ksh, etc.
+    echo -e "${YELLOW}Could not detect your shell configuration file.${NC}"
+    echo "Please add the following directory to your PATH manually:"
+    echo -e "  ${CYAN}${BIN_DIR}${NC}"
 fi
 
+if [ -n "$CONFIG_FILE" ]; then
+    # The command to add to the config file
+    PATH_EXPORT_CMD="export PATH=\"\$HOME/.local/bin:\$PATH\""
+    
+    # Check if the PATH is already configured. If not, add it.
+    if ! grep -q "export PATH=\"\$HOME/.local/bin:\$PATH\"" "$CONFIG_FILE"; then
+        echo -e "\n# Add Mallow and other local binaries to PATH" >> "$CONFIG_FILE"
+        echo "$PATH_EXPORT_CMD" >> "$CONFIG_FILE"
+        echo "✅ Your ${CYAN}${CONFIG_FILE}${NC} has been updated."
+    else
+        echo "✅ Your PATH is already configured correctly."
+    fi
+fi
+# --- END OF AUTOMATED PART ---
+
+# 5. Final instructions
 echo -e "\n${GREEN}🎉 Mallow has been successfully installed!${NC}"
-echo "You can now run the tool from anywhere using the 'mallow' command."
+echo -e "${YELLOW}IMPORTANT:${NC} You must ${CYAN}open a new terminal${NC} for the 'mallow' command to be available."
+echo "Once in a new terminal, you can run commands from any directory:"
+echo -e "  ${YELLOW}mallow list${NC}"
