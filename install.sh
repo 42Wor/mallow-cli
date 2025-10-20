@@ -1,49 +1,59 @@
 #!/bin/bash
 set -e
 
-# --- Configuration & Colors ---
+# --- Configuration ---
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-# Define the hidden system directory for the virtual environment
 MALLOW_ENV_DIR="$HOME/.mallow_env"
-# Define the standard user binary directory
 BIN_DIR="$HOME/.local/bin"
+# The GitHub repository URL now points to the ZIP archive of the main branch
+REPO_URL="https://github.com/42Wor/mallow-cli/archive/refs/heads/main.zip"
+LOG_FILE="mallow-install.log"
+# --- End Configuration ---
 
-LOG_FILE="install.log"
+# --- ASCII Progress Bar Function ---
+function draw_progress_bar {
+    local pid=$1
+    local duration=90
+    local width=40
+    local start_time=$(date +%s)
 
-# --- Spinner Function ---
-spinner() {
-    local msg="$1"
-    local pid=$2
-    local spin='⠙⠹⠸⠼⠴⠦⠧⠇⠏'
-    local i=0
-    tput civis
     while kill -0 $pid 2>/dev/null; do
-        i=$(( (i+1) % ${#spin} ))
-        printf "\r${spin:$i:1} ${msg}"
-        sleep 0.1
+        local current_time=$(date +%s)
+        local elapsed=$((current_time - start_time))
+        local percent=$((elapsed * 100 / duration))
+        if [ "$percent" -gt 100 ]; then percent=100; fi
+        local filled_width=$((width * percent / 100))
+
+        local bar="["
+        bar+="$(printf '#%.0s' $(seq 1 $filled_width))"
+        if [ $filled_width -lt $width ]; then bar+=">"; fi
+        bar+="$(printf -- '-%.0s' $(seq 1 $((width - filled_width - 1)) ))"
+        bar+="]"
+
+        printf "\r${bar} ${percent}%%"
+        sleep 0.2
     done
-    tput cnorm
-    printf "\r"
+    printf "\r[$(printf '#%.0s' $(seq 1 $width))] 100%% \n"
 }
 
 # --- Main Script ---
-echo -e "${YELLOW}Starting Mallow system installation...${NC}"
+echo -e "${YELLOW}Installing Mallow via HTTPS...${NC}"
 
-# 1. Create the virtual environment in the hidden system directory
-echo "Setting up virtual environment in ${CYAN}${MALLOW_ENV_DIR}${NC}..."
-python3 -m venv "$MALLOW_ENV_DIR" &> /dev/null
-echo "✅ Virtual environment created."
+# Create virtual environment silently
+python3 -m venv "$MALLOW_ENV_DIR" > /dev/null
 
-# 2. Install the project into the new environment
-echo "Installing Mallow and its dependencies..."
-# Run pip install in the background from the new environment
-"$MALLOW_ENV_DIR/bin/pip" install -e . > "$LOG_FILE" 2>&1 &
+# Install the project in the background from the ZIP URL
+"$MALLOW_ENV_DIR/bin/pip" install --no-input "$REPO_URL" > "$LOG_FILE" 2>&1 &
 PID=$!
-spinner "Installing packages..." $PID
+
+echo "Installing packages..."
+draw_progress_bar $PID
+
+# Wait for pip to finish and check its exit code
 wait $PID
 EXIT_CODE=$?
 
@@ -55,24 +65,18 @@ else
     echo "✅ Packages installed successfully."
 fi
 
-# 3. Make the 'mallow' command available system-wide for the user
+# Link the command to the user's path
 echo "Adding 'mallow' command to your system path..."
-mkdir -p "$BIN_DIR" # Ensure the bin directory exists
-# Create a symbolic link from the installed script to the user's bin folder
+mkdir -p "$BIN_DIR"
 ln -sf "$MALLOW_ENV_DIR/bin/mallow" "$BIN_DIR/mallow"
-echo "✅ Command linked to ${CYAN}${BIN_DIR}/mallow${NC}."
 
-# 4. Check if BIN_DIR is in the user's PATH
+# Check if PATH is configured
 if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
     echo -e "\n${YELLOW}ACTION REQUIRED:${NC}"
-    echo "Your PATH does not seem to include ${CYAN}${BIN_DIR}${NC}."
-    echo "Please add the following line to your shell configuration file (e.g., ~/.bashrc, ~/.zshrc):"
+    echo "To make the 'mallow' command work, add this line to your ~/.bashrc or ~/.zshrc:"
     echo -e "\n  ${GREEN}export PATH=\"\$HOME/.local/bin:\$PATH\"${NC}\n"
-    echo "Then, restart your terminal for the change to take effect."
-else
-    echo "✅ Your PATH is configured correctly."
+    echo "Then, restart your terminal."
 fi
 
 echo -e "\n${GREEN}🎉 Mallow has been successfully installed!${NC}"
 echo "You can now run the tool from anywhere using the 'mallow' command."
-echo "Example: ${YELLOW}mallow list${NC}"
