@@ -9,6 +9,7 @@ from pathlib import Path
 MANIFEST_URL = "https://github.com/42Wor/mallow-cli/blob/a82d37eabf2122f77c792b427d3e2899a4f60a86/mallow/models.json?raw=true"
 
 # The local directory where Mallow will store models and config.
+
 MALLOW_HOME = Path.home() / ".mallow"
 MODELS_DIR = MALLOW_HOME / "models"
 

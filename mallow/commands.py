@@ -55,16 +55,24 @@ def handle_get(model_name: str):
 
     hf_path = model_info.get("huggingFacePath")
     console.print(f"🔥 Toasting '[bold cyan]{model_name}[/bold cyan]'...")
-    console.print(f"   (Downloading from [link=https://huggingface.co/{hf_path}]{hf_path}[/link])")
+    
+    # --- THIS IS THE NEW PART ---
     try:
-        snapshot_download(repo_id=hf_path, local_dir=local_model_path, local_dir_use_symlinks=False, resume_download=True)
+        # Use a rich status spinner while preparing the download
+        with console.status(f"[bold green]Connecting to Hugging Face Hub...", spinner="dots") as status:
+            snapshot_download(
+                repo_id=hf_path,
+                local_dir=local_model_path,
+                local_dir_use_symlinks=False,
+                resume_download=True,
+            )
+    # --- END OF NEW PART ---
     except Exception as e:
         console.print(f"\n[bold red]Error downloading model:[/bold red] {e}")
         return False
         
     console.print(f"✅ Successfully got '[bold cyan]{model_name}[/bold cyan]'!")
     return True
-
 def handle_run(model_name: str):
     """Handles the interactive 'mallow run' command."""
     # Step 1: Ensure model is downloaded
