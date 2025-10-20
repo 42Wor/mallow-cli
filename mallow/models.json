@@ -1,6 +1,12 @@
 {
   "models": [
     {
+      "name": "tinystories:33m",
+      "huggingFacePath": "roneneldan/TinyStories-33M",
+      "description": "A tiny 33M parameter model for fast testing.",
+      "size": "132 MB"
+    },
+    {
       "name": "llama3:8b",
       "huggingFacePath": "meta-llama/Meta-Llama-3-8B-Instruct",
       "description": "Meta's Llama 3 8B Instruct model.",
