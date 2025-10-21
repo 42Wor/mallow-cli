@@ -1,11 +1,6 @@
 {
   "models": [
-    {
-      "name": "tinystories:33m",
-      "huggingFacePath": "roneneldan/TinyStories-33M",
-      "description": "A tiny 33M parameter model for fast testing.",
-      "size": "132 MB"
-    },
+
     {
       "name": "llama3:8b",
       "huggingFacePath": "meta-llama/Meta-Llama-3-8B-Instruct",
@@ -29,6 +24,12 @@
       "huggingFacePath": "microsoft/Phi-3-mini-4k-instruct",
       "description": "Microsoft's powerful 3.8B 'mini' model.",
       "size": "2.2 GB"
+    },
+        {
+      "name": "tinystories:33m",
+      "huggingFacePath": "roneneldan/TinyStories-33M",
+      "description": "A tiny 33M parameter model for fast testing.",
+      "size": "132 MB"
     }
   ]
 }

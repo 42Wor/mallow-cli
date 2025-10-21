@@ -1,34 +1,17 @@
-# mallow/api.py
 import requests
-import json
-from . import config
+from rich.console import Console
 
-def fetch_manifest():
-    """Fetches and parses the model manifest, bypassing caches."""
+from mallow import config
+
+console = Console()
+
+def fetch_models_manifest():
+    """Fetches the official list of models from the remote manifest."""
     try:
-        # Add headers to prevent caching
-        headers = {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-        }
-        
-        console.print("☁️  Fetching latest manifest from GitHub...")
-        response = requests.get(config.MANIFEST_URL, timeout=10, headers=headers)
-        response.raise_for_status()
+        response = requests.get(config.MANIFEST_URL, timeout=10)
+        response.raise_for_status()  # Raises an HTTPError for bad responses (4xx or 5xx)
         return response.json()
     except requests.exceptions.RequestException as e:
-        raise ConnectionError(f"Could not fetch model manifest: {e}")
-    except json.JSONDecodeError:
-        raise ValueError("Failed to parse the model manifest.")
-
-# find_model_in_manifest function remains the same
-def find_model_in_manifest(model_name: str, manifest: dict):
-    """Searches for a model by name in the manifest."""
-    for model in manifest.get("models", []):
-        if model.get("name") == model_name:
-            return model
-    return None
-
-# We also need to import the console to print the message
-from rich.console import Console
-console = Console()
+        console.print(f"[bold red]Error:[/bold red] Could not fetch model list. Check your connection.")
+        console.print(f"Details: {e}")
+        return None

@@ -1,46 +1,36 @@
-# mallow/cli.py
-"""
-Defines the command-line interface, argument parsing, and command dispatching.
-"""
-import argparse
-from . import commands
+import typer
+from mallow import commands
 
-def create_parser():
-    """Creates the main argument parser for the Mallow CLI."""
-    parser = argparse.ArgumentParser(
-        description="Mallow: Your Friendly Local LLM Server.",
-        epilog="Soft-serve AI on your desktop. 🍮"
-    )
-    subparsers = parser.add_subparsers(dest="command", required=True, help="Available commands")
+app = typer.Typer(
+    name="mallow",
+    help="""
+    Mallow: Your Friendly Local LLM Server ☁️
 
-    # Parser for the 'run' command
-    run_parser = subparsers.add_parser("run", help="Run a model and chat with it interactively.")
-    run_parser.add_argument("model_name", help="The name of the model to run (e.g., 'phi-3:mini').")
+    Soft-serve AI on your desktop.
+    """
+)
 
-    # Parser for the 'list' command
-    subparsers.add_parser("list", help="List all available models to download.")
+@app.command()
+def list():
+    """
+    Show all available official models.
+    """
+    commands.list_models()
 
-    # Parser for the 'get' command
-    get_parser = subparsers.add_parser("get", help="Download a model to your local machine.")
-    get_parser.add_argument("model_name", help="The name of the model to download.")
-    
-    # Parser for the 'serve' command
-    serve_parser = subparsers.add_parser("serve", help="Serve a local model via a placeholder API.")
-    serve_parser.add_argument("model_name", help="The name of the downloaded model to serve.")
+@app.command()
+def get(
+    model_name: str = typer.Argument(..., help="The name of the model to download, e.g., 'llama3:8b'")
+):
+    """
+    Download a model to your local machine.
+    """
+    commands.get_model(model_name)
 
-    return parser
-
-def main():
-    """Main function to parse args and dispatch to the correct command handler."""
-    commands.setup_directories()
-    parser = create_parser()
-    args = parser.parse_args()
-
-    if args.command == "run":
-        commands.handle_run(args.model_name)
-    elif args.command == "list":
-        commands.handle_list()
-    elif args.command == "get":
-        commands.handle_get(args.model_name)
-    elif args.command == "serve":
-        commands.handle_serve(args.model_name)
+@app.command()
+def serve(
+    model_name: str = typer.Argument(..., help="The name of the model to serve.")
+):
+    """
+    (Coming Soon) Serve a model locally for API interaction.
+    """
+    print(f"✨ Feature coming soon! You will be able to serve '{model_name}' soon. ✨")

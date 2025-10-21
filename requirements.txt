@@ -1,11 +1,3 @@
-# Core & API
+typer[all]
 requests
-rich
 huggingface_hub
-Flask
-
-# For running models with PyTorch
-transformers
-torch
-accelerate
-bitsandbytes
