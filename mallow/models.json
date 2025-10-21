@@ -29,6 +29,24 @@
       "huggingFacePath": "roneneldan/TinyStories-33M",
       "description": "A tiny 33M parameter model for fast testing.",
       "size": "132 MB"
+    },
+    {
+      "name": "mixtral:8x7b",
+      "huggingFacePath": "mistralai/Mixtral-8x7B-Instruct-v0.1",
+      "description": "Mistral's powerful Mixture-of-Experts model.",
+      "size": "26 GB"
+    },
+    {
+      "name": "llava:7b",
+      "huggingFacePath": "llava-hf/llava-1.5-7b-hf",
+      "description": "A multimodal model for vision and language.",
+      "size": "~7.5 GB"
+    },
+    {
+      "name": "nomic-embed-text",
+      "huggingFacePath": "nomic-ai/nomic-embed-text-v1.5",
+      "description": "State-of-the-art text embedding model.",
+      "size": "275 MB"
     }
   ]
 }
