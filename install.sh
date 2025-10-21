@@ -1,109 +1,92 @@
 #!/bin/bash
-set -e
+
+# Mallow Installer Script for Linux and macOS
+# --------------------------------------------
 
 # --- Configuration ---
+REPO_URL="https://github.com/42Wor/mallow-cli.git"
+INSTALL_DIR="/opt/mallow-cli"
+SYMLINK_PATH="/usr/local/bin/mallow"
+
+# --- Colors for Logging ---
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-NC='\033[0m'
+BLUE='\033[0;34m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
 
-MALLOW_ENV_DIR="$HOME/.mallow_env"
-BIN_DIR="$HOME/.local/bin"
-REPO_URL="https://github.com/42Wor/mallow-cli/archive/refs/heads/main.zip"
-LOG_FILE="mallow-install.log"
-# --- End Configuration ---
+# --- Pacman Animation Function ---
+# Takes one argument: the message to display.
+pacman_animation() {
+    local message="$1"
+    local frames=("( o< )" "(  < )" "( <  )" "(<   )" "(   <)" "(  < )")
+    local delay=0.1
+    local duration=3 # seconds
 
-# --- ASCII Progress Bar Function ---
-function draw_progress_bar {
-    local pid=$1
-    local duration=90
-    local width=40
-    local start_time=$(date +%s)
-
-    while kill -0 $pid 2>/dev/null; do
-        local current_time=$(date +%s)
-        local elapsed=$((current_time - start_time))
-        local percent=$((elapsed * 100 / duration))
-        if [ "$percent" -gt 100 ]; then percent=100; fi
-        local filled_width=$((width * percent / 100))
-
-        local bar="["
-        bar+="$(printf '#%.0s' $(seq 1 $filled_width))"
-        if [ $filled_width -lt $width ]; then bar+=">"; fi
-        bar+="$(printf -- '-%.0s' $(seq 1 $((width - filled_width - 1)) ))"
-        bar+="]"
-
-        printf "\r${bar} ${percent}%%"
-        sleep 0.2
+    echo -ne "\n"
+    tput civis # Hide cursor
+    end_time=$((SECONDS + duration))
+    while [ $SECONDS -lt $end_time ]; do
+        for frame in "${frames[@]}"; do
+            echo -ne "${BLUE}${frame}${NC} ${YELLOW}${message}${NC}\r"
+            sleep $delay
+        done
     done
-    printf "\r[$(printf '#%.0s' $(seq 1 $width))] 100%% \n"
+    tput cnorm # Show cursor
+    echo -e "\n${GREEN}✔ Done!${NC}"
 }
 
-
 # --- Main Script ---
-echo -e "${YELLOW}Starting fully automated Mallow installation...${NC}"
 
-# 1. Create virtual environment
-python3 -m venv "$MALLOW_ENV_DIR" > /dev/null
+# 1. Welcome Message
+clear
+echo -e "${GREEN}
+  __  __       _          _ _ 
+ |  \/  | __ _(_)_ __    | | |
+ | |\/| |/ _\` | | '_ \   | | |
+ | |  | | (_| | | | | |  |_|_|
+ |_|  |_|\__,_|_|_| |_|  (_|_)
+${NC}"
+echo -e "${YELLOW}Welcome to the Mallow Installer! 🍬${NC}"
+echo "This script will install Mallow on your system."
+echo "You may be asked for your password to install to ${SYMLINK_PATH}."
+echo ""
 
-# 2. Install the project
-"$MALLOW_ENV_DIR/bin/pip" install --no-input "$REPO_URL" > "$LOG_FILE" 2>&1 &
-PID=$!
-echo "Installing packages..."
-draw_progress_bar $PID
-wait $PID
-EXIT_CODE=$?
+# 2. Check Dependencies
+echo -e "[INFO] Checking for required tools (git, python3, pip)..."
+command -v git >/dev/null 2>&1 || { echo -e "${RED}Error: git is not installed. Aborting.${NC}"; exit 1; }
+command -v python3 >/dev/null 2>&1 || { echo -e "${RED}Error: python3 is not installed. Aborting.${NC}"; exit 1; }
+command -v pip3 >/dev/null 2>&1 || { echo -e "${RED}Error: pip3 is not installed. Aborting.${NC}"; exit 1; }
+echo -e "[INFO] All dependencies found."
 
-if [ $EXIT_CODE -ne 0 ]; then
-    echo -e "❌ ${YELLOW}Installation failed.${NC}"
-    echo "Please check the log file for details: ${YELLOW}${LOG_FILE}${NC}"
-    exit $EXIT_CODE
-else
-    echo "✅ Packages installed successfully."
+# 3. Clone Repository
+pacman_animation "Downloading Mallow from GitHub..."
+if [ -d "/tmp/mallow-cli" ]; then
+    rm -rf /tmp/mallow-cli
 fi
+git clone --depth 1 "$REPO_URL" /tmp/mallow-cli > /dev/null 2>&1
 
-# 3. Link the executable
-mkdir -p "$BIN_DIR"
-ln -sf "$MALLOW_ENV_DIR/bin/mallow" "$BIN_DIR/mallow"
+# 4. Move to Install Directory
+echo -e "[INFO] Installing Mallow to ${INSTALL_DIR}..."
+sudo rm -rf ${INSTALL_DIR}
+sudo mv /tmp/mallow-cli ${INSTALL_DIR}
 
-# --- THIS IS THE NEW, FULLY AUTOMATED PART ---
-# 4. Automatically configure the user's shell PATH
-echo "Configuring your shell environment..."
-CONFIG_FILE=""
-SHELL_NAME=$(basename "$SHELL")
+# 5. Install Python Dependencies in a Virtual Environment
+echo -e "[INFO] Setting up a clean Python environment..."
+sudo python3 -m venv ${INSTALL_DIR}/venv
+echo -e "[INFO] Installing required packages..."
+sudo ${INSTALL_DIR}/venv/bin/pip install -r ${INSTALL_DIR}/requirements.txt > /dev/null 2>&1
 
-if [ "$SHELL_NAME" = "zsh" ]; then
-    CONFIG_FILE="$HOME/.zshrc"
-elif [ "$SHELL_NAME" = "bash" ]; then
-    CONFIG_FILE="$HOME/.bashrc"
-    # For non-interactive shells, .bash_profile might be used, so we check that too
-    if [ ! -f "$HOME/.bashrc" ]; then
-        CONFIG_FILE="$HOME/.bash_profile"
-    fi
-else
-    # Fallback for other shells like fish, ksh, etc.
-    echo -e "${YELLOW}Could not detect your shell configuration file.${NC}"
-    echo "Please add the following directory to your PATH manually:"
-    echo -e "  ${CYAN}${BIN_DIR}${NC}"
-fi
+# 6. Create the Launcher Script
+echo -e "[INFO] Creating the 'mallow' command..."
+LAUNCHER_SCRIPT="#!/bin/bash\nexec ${INSTALL_DIR}/venv/bin/python3 ${INSTALL_DIR}/mallow.py \"\$@\""
+echo -e "${LAUNCHER_SCRIPT}" | sudo tee ${SYMLINK_PATH} > /dev/null
+sudo chmod +x ${SYMLINK_PATH}
 
-if [ -n "$CONFIG_FILE" ]; then
-    # The command to add to the config file
-    PATH_EXPORT_CMD="export PATH=\"\$HOME/.local/bin:\$PATH\""
-    
-    # Check if the PATH is already configured. If not, add it.
-    if ! grep -q "export PATH=\"\$HOME/.local/bin:\$PATH\"" "$CONFIG_FILE"; then
-        echo -e "\n# Add Mallow and other local binaries to PATH" >> "$CONFIG_FILE"
-        echo "$PATH_EXPORT_CMD" >> "$CONFIG_FILE"
-        echo "✅ Your ${CYAN}${CONFIG_FILE}${NC} has been updated."
-    else
-        echo "✅ Your PATH is already configured correctly."
-    fi
-fi
-# --- END OF AUTOMATED PART ---
-
-# 5. Final instructions
-echo -e "\n${GREEN}🎉 Mallow has been successfully installed!${NC}"
-echo -e "${YELLOW}IMPORTANT:${NC} You must ${CYAN}open a new terminal${NC} for the 'mallow' command to be available."
-echo "Once in a new terminal, you can run commands from any directory:"
-echo -e "  ${YELLOW}mallow list${NC}"
+# 7. Success Message
+echo -e "\n${GREEN}-------------------------------------------${NC}"
+echo -e "${GREEN}  🍬 Mallow has been successfully installed! 🍬${NC}"
+echo -e "${GREEN}-------------------------------------------${NC}"
+echo -e "You can now run Mallow from anywhere by typing:"
+echo -e "\n  ${YELLOW}mallow list${NC}"
+echo -e "\nEnjoy your soft-serve AI! ✨"
